@@ -198,11 +198,11 @@ class PPOTrainer:
                 ref_model_device = [x for x in self.ref_model.parameters()][0].get_device()
                 original_input_device = input_ids.get_device()
                 if original_input_device != ref_model_device:
-                    input_ids.to(ref_model_device)
+                    input_ids = input_ids.to(ref_model_device)
 
                     ref_logits, _, _ = self.ref_model(input_ids)
-                    input_ids.to(original_input_device)
-                    ref_logits.to(original_input_device)
+                    input_ids = input_ids.to(original_input_device)
+                    ref_logits = ref_logits.to(original_input_device)
 
 
             logprobs = logprobs_from_logits(logits[:,:-1,:], input_ids[:,1:])
