@@ -194,7 +194,17 @@ class PPOTrainer:
             input_ids = self.data_collator([torch.cat([q, r]) for q, r in zip(query_batch, response_batch)])["input_ids"]
             with torch.no_grad():
                 logits, _, v = self.model(input_ids)
-                ref_logits, _, _ = self.ref_model(input_ids)
+
+                ref_model_device = [x for x in self.ref_model.parameters()][0].get_device()
+                original_input_device = input_ids.get_device()
+                if original_input_device != ref_model_device:
+                    input_ids.to(ref_model_device)
+
+                    ref_logits, _, _ = self.ref_model(input_ids)
+                    input_ids.to(original_input_device)
+                    ref_logits.to(original_input_device)
+
+
             logprobs = logprobs_from_logits(logits[:,:-1,:], input_ids[:,1:])
             ref_logprobs = logprobs_from_logits(ref_logits[:,:-1,:], input_ids[:,1:])
             for j in range(fbs):
