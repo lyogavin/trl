@@ -73,6 +73,7 @@ class PPOTrainer:
         "batch_size": 256,
         "forward_batch_size": 16,
         "ppo_epochs": 4,
+        "accum_steps":1,
     }
 
     def __init__(self, model, ref_model, tokenizer, **ppo_params):
@@ -116,6 +117,8 @@ class PPOTrainer:
         else:
             self.kl_ctl = FixedKLController(self.ppo_params['init_kl_coef'])
 
+        self.step_counter = -1
+
 
     def step(self, queries, responses, scores):
         """
@@ -129,6 +132,7 @@ class PPOTrainer:
         returns:
             train_stats (dict): a summary of the training statistics
         """
+        self.step_counter += 1
 
         bs = self.ppo_params['batch_size']
         assert bs == len(queries), f"Batch size ({bs}) does not match number of examples ({len(queries)})"
@@ -219,9 +223,11 @@ class PPOTrainer:
         """Train one PPO minibatch"""
         loss_p, loss_v, train_stats  = self.loss(logprobs, values, rewards, query, response, model_input)
         loss = loss_p + loss_v
-        self.optimizer.zero_grad()
         loss.backward()
-        self.optimizer.step()
+
+        if self.step_counter % self.ppo_params['accum_steps'] == 0:
+            self.optimizer.zero_grad()
+            self.optimizer.step()
         return train_stats
 
     def compute_rewards(self, scores, logprobs, ref_logprobs):
